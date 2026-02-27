@@ -1,6 +1,6 @@
 services:
   web:
-    image: ghcr.io/zzzx8888/xboard:new
+    image:ghcr.io/zzzx8888/xboard:new
     volumes:
       - ./.docker/.data/redis/:/data/
       - ./:/www/
