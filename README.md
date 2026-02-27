@@ -32,6 +32,7 @@ docker compose run -it --rm \
     -e ADMIN_ACCOUNT=admin@demo.com \
     web php artisan xboard:install && \
 docker compose up -d
+
 ```
 
 > After installation, visit: http://SERVER_IP:7001  
