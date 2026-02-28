@@ -52,7 +52,7 @@ class KnowledgeImportCommand extends Command
         try {
             $content = File::get($summaryFile);
             // Handle various possible SUMMARY.md formats
-            $yamlContent = preg_replace('/^---\s*\n/', '', $content);
+            $yamlContent = preg_replace('/^---\s*$/m', '', $content);
             $summary = Yaml::parse($yamlContent);
         } catch (\Exception $e) {
             $this->error('Failed to parse SUMMARY.md: ' . $e->getMessage());
@@ -67,7 +67,7 @@ class KnowledgeImportCommand extends Command
 
             foreach ($categories as $categoryData) {
                 $categoryName = $categoryData['title'] ?? 'General';
-                
+
                 // Handle subItems
                 if (isset($categoryData['subItems']) && is_array($categoryData['subItems'])) {
                     foreach ($categoryData['subItems'] as $item) {
@@ -94,7 +94,7 @@ class KnowledgeImportCommand extends Command
         if (!$relativeMdPath) return;
 
         $fullMdPath = $basePath . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $relativeMdPath);
-        
+
         if (!File::exists($fullMdPath)) {
             $this->warn("File not found: {$fullMdPath}");
             return;
@@ -114,19 +114,19 @@ class KnowledgeImportCommand extends Command
             }
 
             $imgFullPath = $mdDir . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $imgRelativePath);
-            
+
             if (File::exists($imgFullPath)) {
                 $fileName = basename($imgFullPath);
                 // Create a unique path for the image in storage
                 $destSubDir = "knowledge/ppanel-tutorial/{$lang}/" . Str::slug($category);
                 $destDir = \storage_path("app/public/{$destSubDir}");
-                
+
                 if (!File::isDirectory($destDir)) {
                     File::makeDirectory($destDir, 0755, true);
                 }
 
                 File::copy($imgFullPath, $destDir . DIRECTORY_SEPARATOR . $fileName);
-                
+
                 // Return new Markdown image path
                 $newPath = "/storage/{$destSubDir}/{$fileName}";
                 return "![{$altText}]({$newPath})";
