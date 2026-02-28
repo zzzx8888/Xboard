@@ -51,9 +51,18 @@ class KnowledgeImportCommand extends Command
 
         try {
             $content = File::get($summaryFile);
-            // Handle various possible SUMMARY.md formats
-            $yamlContent = preg_replace('/^---\s*$/m', '', $content);
-            $summary = Yaml::parse($yamlContent);
+            
+            // 尝试解析为 YAML
+            try {
+                $yamlContent = preg_replace('/^---\s*$/m', '', $content);
+                $summary = Yaml::parse($yamlContent);
+                if (!is_array($summary)) {
+                    throw new \Exception("Not a valid YAML format");
+                }
+            } catch (\Exception $e) {
+                // 如果 YAML 解析失败，尝试解析 Markdown 列表格式 (GitBook 风格)
+                $summary = $this->parseMarkdownSummary($content);
+            }
         } catch (\Exception $e) {
             $this->error('Failed to parse SUMMARY.md: ' . $e->getMessage());
             return;
@@ -67,7 +76,7 @@ class KnowledgeImportCommand extends Command
 
             foreach ($categories as $categoryData) {
                 $categoryName = $categoryData['title'] ?? 'General';
-
+                
                 // Handle subItems
                 if (isset($categoryData['subItems']) && is_array($categoryData['subItems'])) {
                     foreach ($categoryData['subItems'] as $item) {
@@ -76,14 +85,81 @@ class KnowledgeImportCommand extends Command
                     }
                 } else {
                     // Direct item
-                    $this->importItem($path, $lang, 'General', $categoryData);
-                    $count++;
+                    if (isset($categoryData['path'])) {
+                         $this->importItem($path, $lang, $categoryName, $categoryData);
+                         $count++;
+                    }
                 }
             }
         }
 
         $this->info("Import completed. Total items processed: {$count}");
         $this->info("Images are stored in: public/storage/knowledge/ppanel-tutorial");
+    }
+
+    private function parseMarkdownSummary($content)
+    {
+        $lines = explode("\n", $content);
+        $summary = [];
+        $currentLang = 'en'; // Default fallback
+        $currentCategory = 'General';
+        
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (empty($line)) continue;
+
+            // Match Category (## Header) or any header level
+            if (preg_match('/^#+\s+(.+)$/', $line, $matches)) {
+                $currentCategory = trim($matches[1]);
+                continue;
+            }
+
+            // Match Link (* [Title](path)) or - [Title](path)
+            if (preg_match('/^[\*\-]\s+\[(.*?)\]\((.*?)\)/', $line, $matches)) {
+                $title = $matches[1];
+                $path = $matches[2];
+                
+                // Determine language from path parts
+                // Example: en-US/windows/README.md -> lang = en-US
+                $pathParts = explode('/', $path);
+                $lang = $currentLang;
+                
+                if (count($pathParts) > 0) {
+                     // Check if first part looks like a language code (e.g., en, en-US, zh-CN)
+                     if (preg_match('/^[a-z]{2}(-[A-Z]{2})?$/', $pathParts[0])) {
+                         $lang = $pathParts[0];
+                     }
+                }
+
+                if (!isset($summary[$lang])) {
+                    $summary[$lang] = [];
+                }
+                
+                // Find or create category in the summary array
+                $categoryIndex = -1;
+                foreach ($summary[$lang] as $index => $cat) {
+                    if ($cat['title'] === $currentCategory) {
+                        $categoryIndex = $index;
+                        break;
+                    }
+                }
+
+                if ($categoryIndex === -1) {
+                    $summary[$lang][] = [
+                        'title' => $currentCategory,
+                        'subItems' => []
+                    ];
+                    $categoryIndex = count($summary[$lang]) - 1;
+                }
+
+                $summary[$lang][$categoryIndex]['subItems'][] = [
+                    'title' => $title,
+                    'path' => $path
+                ];
+            }
+        }
+        
+        return $summary;
     }
 
     private function importItem($basePath, $lang, $category, $item)
