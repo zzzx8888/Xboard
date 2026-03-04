@@ -62,7 +62,7 @@ apt update && apt install -y git
 yum update && yum install -y git
 
 # Clone repository
-git clone https://github.com/zzzx8888/Xboard.git ./
+git clone -b compose --depth 1  https://github.com/zzzx8888/Xboard ./
 
 # Configure Docker Compose
 ```
