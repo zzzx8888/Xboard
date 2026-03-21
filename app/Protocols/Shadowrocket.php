@@ -165,13 +165,18 @@ class Shadowrocket extends AbstractProtocol
                 if ($serverName = data_get($protocol_settings, 'tls_settings.server_name')) {
                     $config['peer'] = $serverName;
                 }
+                if ($fp = Helper::getTlsFingerprint(data_get($protocol_settings, 'utls'))) {
+                    $config['fp'] = $fp;
+                }
                 break;
             case 2:
                 $config['tls'] = 1;
                 $config['sni'] = data_get($protocol_settings, 'reality_settings.server_name');
                 $config['pbk'] = data_get($protocol_settings, 'reality_settings.public_key');
                 $config['sid'] = data_get($protocol_settings, 'reality_settings.short_id');
-                $config['fp'] = Helper::getRandFingerprint();
+                if ($fp = Helper::getTlsFingerprint(data_get($protocol_settings, 'utls'))) {
+                    $config['fp'] = $fp;
+                }
                 break;
             default:
                 break;
@@ -356,8 +361,10 @@ class Shadowrocket extends AbstractProtocol
     }
 
     public static function buildSocks($password, $server)
-    {
-        $uri = "socks://" . base64_encode("{$password}:{$password}@{$server['host']}:{$server['port']}") . "?method=auto";
+    {   
+        $protocol_settings = $server['protocol_settings'];
+        $name = rawurlencode($server['name']);
+        $uri = "socks://" . base64_encode("{$password}:{$password}@{$server['host']}:{$server['port']}") . "?method=auto#{$name}";
         $uri .= "\r\n";
         return $uri;
     }
